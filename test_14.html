@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upkeep Production QA Checklist</title>
+<style>
+  :root { color-scheme: light; --bg:#f5f6fa; --card:#fff; --text:#202331; --muted:#667085; --line:#e3e6ee; --accent:#6558d3; --pass:#18794e; --fail:#b42318; --warn:#9a6700; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif }
+  header { background:#171725; color:white; padding:26px 18px }
+  .wrap { max-width:1050px; margin:auto; padding:0 16px }
+  h1 { margin:0 0 6px; font-size:clamp(1.5rem,4vw,2rem) }
+  header p { margin:0; color:#d3d3e2 }
+  main { padding:20px 0 48px }
+  .toolbar,.summary,.section { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 2px 8px #20233108 }
+  .toolbar { padding:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px }
+  button,.button { font:inherit; border:1px solid var(--line); background:white; border-radius:9px; padding:9px 12px; cursor:pointer; color:var(--text) }
+  button.primary { background:var(--accent); color:white; border-color:var(--accent) }
+  button:hover { filter:brightness(.97) }
+  .toolbar .hint { color:var(--muted); font-size:.88rem; flex:1 1 230px }
+  .summary { padding:16px; margin-bottom:18px }
+  .summary-top { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center }
+  .stats { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:14px 0 10px }
+  .stat { padding:12px; border-radius:10px; background:#f5f6fa }
+  .stat b { display:block; font-size:1.55rem; font-variant-numeric:tabular-nums }
+  .stat span { color:var(--muted); font-size:.82rem }
+  .progress { height:8px; border-radius:99px; overflow:hidden; background:#e8eaf1 }
+  .progress > div { height:100%; width:0; background:var(--accent); transition:width .15s }
+  .meta { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:14px }
+  label.meta-label { display:block; color:var(--muted); font-size:.82rem; margin-bottom:4px }
+  input[type=text],input[type=date],textarea,select { width:100%; padding:9px 10px; border:1px solid #cfd4df; border-radius:8px; font:inherit; background:white; color:var(--text) }
+  .section { margin:12px 0; overflow:hidden }
+  .section-head { display:flex; align-items:center; gap:12px; padding:15px 16px; cursor:pointer; user-select:none }
+  .section-head h2 { margin:0; font-size:1.06rem; flex:1 }
+  .section-head .count { color:var(--muted); font-size:.85rem; white-space:nowrap }
+  .chevron { color:var(--muted); font-size:1.1rem }
+  .tests { border-top:1px solid var(--line) }
+  .test { padding:15px 16px; border-bottom:1px solid var(--line) }
+  .test:last-child { border-bottom:0 }
+  .test-top { display:grid; grid-template-columns:26px minmax(0,1fr); gap:10px; align-items:start }
+  .test input[type=checkbox] { width:18px; height:18px; margin:3px 0 0; accent-color:var(--accent); cursor:pointer }
+  .test-title { font-weight:550 }
+  .test-id { color:var(--muted); font-size:.78rem; margin-right:6px; font-variant-numeric:tabular-nums }
+  .test-details { display:grid; grid-template-columns:minmax(150px,190px) minmax(0,1fr); gap:10px; margin:11px 0 0 36px }
+  .test-details label { display:block; font-size:.78rem; color:var(--muted); margin-bottom:4px }
+  textarea { min-height:40px; resize:vertical }
+  .status { font-weight:600 }
+  .status-pass { color:var(--pass) } .status-fail { color:var(--fail) } .status-blocked { color:var(--warn) }
+  .foot { color:var(--muted); font-size:.85rem; text-align:center; padding:18px 0 }
+  .hidden { display:none }
+  @media(max-width:650px) {
+    .stats { grid-template-columns:repeat(2,minmax(0,1fr)) }
+    .meta { grid-template-columns:1fr }
+    .test-details { grid-template-columns:1fr; margin-left:36px }
+    .section-head { padding:13px }
+  }
+  @media print {
+    body { background:white; font-size:11pt }
+    header { background:white; color:black; padding:8px 0 }
+    header p { color:#444 }
+    .wrap { max-width:none; padding:0 }
+    .toolbar,.foot,.section-head .chevron { display:none !important }
+    .summary,.section { box-shadow:none; break-inside:avoid }
+    .section .tests { display:block !important }
+    .test { break-inside:avoid; padding:9px }
+    .test-details { display:grid !important }
+    input,textarea,select { border:0; padding:2px; appearance:none }
+  }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Upkeep Production QA Checklist</h1>
+  <p>Production regression testing · Record the result of each test and export a report to share.</p>
+</div></header>
+<main class="wrap">
+  <div class="toolbar">
+    <button class="primary" id="exportJson">Export progress backup (.json)</button>
+    <button id="importJson">Import progress backup</button>
+    <input id="importFile" type="file" accept=".json,application/json" class="hidden">
+    <button id="downloadReport">Download report (.html)</button>
+    <button id="downloadCsv">Export CSV</button>
+    <button id="printReport">Print / Save PDF</button>
+    <button id="reset">Reset results</button>
+    <span class="hint">Changes save in this browser automatically. Export a backup to move progress to another device.</span>
+  </div>
+
+  <section class="summary">
+    <div class="summary-top"><strong>Test progress</strong><span id="overall">0 of 0 completed</span></div>
+    <div class="stats">
+      <div class="stat"><b id="passed">0</b><span>Passed</span></div>
+      <div class="stat"><b id="failed">0</b><span>Failed</span></div>
+      <div class="stat"><b id="blocked">0</b><span>Blocked</span></div>
+      <div class="stat"><b id="untested">0</b><span>Not tested</span></div>
+      <div class="stat"><b id="completion">0%</b><span>Completed</span></div>
+    </div>
+    <div class="progress"><div id="progressBar"></div></div>
+    <div class="meta">
+      <div><label class="meta-label" for="tester">Tester</label><input type="text" id="tester" placeholder="Your name"></div>
+      <div><label class="meta-label" for="testDate">Test date</label><input type="date" id="testDate"></div>
+      <div><label class="meta-label" for="build">Build / release / notes</label><input type="text" id="build" placeholder="Optional release or deployment reference"></div>
+    </div>
+    <div style="margin-top:12px"><label class="meta-label" for="overallNotes">Overall notes</label><textarea id="overallNotes" placeholder="Optional summary, issues raised, or areas not covered"></textarea></div>
+  </section>
+
+  <div id="checklist"></div>
+  <p class="foot">This file records the results you enter; it does not connect to Upkeep or independently verify production behavior. Do not include customer secrets or payment credentials in notes.</p>
+</main>
+<script>
+const sections = [
+{title:"💳 Payments and payment links",items:[
+"Open an invoice's payment link. Verify current link, Copy button, amount, expiry, creator and creation time.",
+"Click Text. Verify customer-profile phone number and message preview.",
+"Edit the text message and send it. Verify the system sends it successfully.",
+"Remove the payment link from the message. Verify it is automatically added back.",
+"Verify WhatsApp is removed, while Email and Open remain.",
+"Replace a payment link. Verify the new link works and the old link stops working.",
+"Deactivate a link. Verify the second-click confirmation and that the link stops working.",
+"Change the invoice balance after creating a link. Verify the old-amount warning appears.",
+"Create links with 7, 14, 30, 60 and 90-day expiry options.",
+"Create a new order with a Full Upfront invoice. Click Charge now and verify checkout opens for the full balance.",
+"Check ORD-418145. Verify $0 balance, no Take payment of $0 action, and paid invoices cannot remain drafts.",
+"Open Checkout Payment due for a team invoice that never went through approval. Verify payment can proceed.",
+"Approve a custom line. Verify it counts as approved and Customer approved only appears for approvals made in the app.",
+"Simulate a balance-loading failure. Verify an error appears instead of No unpaid invoices.",
+"Test an override on an employee screen: manager uses their own PIN; signed-in manager/admin can approve with a click."
+]},
+{title:"🧾 New order and Edit order",items:[
+"Edit an issued invoice and click Save & exit. Reopen it and verify changes persisted.",
+"Save an incomplete invoice as a draft. Reopen it and finish intake/pricing later.",
+"Cause a save failure. Verify typed data remains and recovery instructions explain newer changes and paid-service restrictions.",
+"Delete the Front, Back, Label or Detail photo. Verify the next photo fills that slot, not Additional.",
+"Delete all photos. Verify AI analysis runs again.",
+"Open Edit order and add the first photo. Verify AI analysis runs.",
+"Turn off Notify customer and save. Verify the customer receives no notification.",
+"Click Save & print. Verify the QR code is ready before the print dialog opens.",
+"Open the same order in two tabs. Save newer changes, then try saving older changes. Verify stale data cannot overwrite newer data.",
+"Test ORD-418400 / INV-418020. Change custom pricing after issuing a quote. Verify save succeeds without a false invoice-changed warning.",
+"Test draft autosave after temporary save-session tracking expires. Verify no false invoice-changed or reload error appears.",
+"Click + / Add service while item details are open. Verify guidance explains services open after photos and points to Camera.",
+"Click Approved, not paid in the quote popup. Verify the service checklist opens instead of approving all items.",
+"Open the Approved, not paid checklist. Verify each item has a photo that enlarges on hover."
+]},
+{title:"🛠️ Work orders and order page",items:[
+"Test ORD-418131. Approve one item after other items are finished. Verify Start remaining work appears even if the order says work complete.",
+"Start remaining work. Verify the order returns to In progress and previously finished items remain on their shelf.",
+"Verify item attention order: waiting → in work → finished → gone.",
+"Open Printing. Verify quick drop slip, work order labels and invoice are listed and each can be reprinted.",
+"Open a print dialog and close it. Verify the related print tab closes.",
+"Reopen a completed order. Verify the journey bar no longer stays at Completed 14 of 14."
+]},
+{title:"📦 Returns, checkout and shipping",items:[
+"Process an unrepaired return. Verify it says Returned unrepaired… No charge, not Paid and completed or Fully paid.",
+"Test FedEx shipment and Uber shipment. Verify both skip QC, like counter handover.",
+"Open the FedEx tab. Verify the customer's saved address fills automatically.",
+"Open FedEx and Uber tabs. Verify items still needing work are listed with a warning not to pack them.",
+"Create a FedEx label when no work remains. Verify order becomes Ready for delivery.",
+"Create a FedEx label with unfinished work. Verify the order remains in work.",
+"Check out a legacy order. Verify every item is checked out at once.",
+"Test a legacy order dropped off in store. Verify Check out opens the in-store item picker."
+]},
+{title:"🏬 Warehouse racking",items:[
+"Open warehouse racking. Verify item cards show the intake photo instead of a grey placeholder.",
+"Verify bin thumbnails also show the intake photo.",
+"Leave an employee account idle on the racking screen. Verify the PIN keypad locks and covers the whole screen.",
+"Wake the tablet after it has gone idle. Verify the PIN keypad returns and the employee must unlock the screen."
+]},
+{title:"📱 Tablet layout",items:[
+"Open Upkeep on an iPad in landscape orientation.",
+"Verify the navigation bar fits without clipping.",
+"Verify navigation actions and account/logout controls are visible and reachable."
+]},
+{title:"🔔 Notifications and messages",items:[
+"Trigger a staff popup from a customer action. Verify it appears.",
+"Trigger a new-message popup. Verify it appears.",
+"Trigger an internal event such as Upkeep Admin approved order. Verify it does not appear as a staff popup.",
+"Add an intake note. Verify it appears as note activity, not video uploaded.",
+"Send a test SMS. Verify branding says Upkeep, a division of Pasquale Shoe Repair.",
+"Send a test email. Verify the same branding.",
+"Generate a receipt. Verify the same branding.",
+"Print an invoice. Verify the same branding.",
+"Open Communications and send an SMS test to one number. Verify Delivered or Failed status."
+]},
+{title:"🗂️ Data fixes",items:[
+"Open INV-415977. Verify it is no longer a draft.",
+"Open INV-415995. Verify it is no longer a draft.",
+"Open INV-417781. Verify it is no longer a draft."
+]}
+];
+
+const STORAGE_KEY = "upkeep-production-qa-v1";
+const states = new Map();
+let openSections = new Set([0]);
+const el = id => document.getElementById(id);
+const escapeHtml = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function allTests() {
+  let id=1;
+  return sections.flatMap((section,si)=>section.items.map((title,ii)=>({id:`UP-${String(id++).padStart(3,"0")}`,si,ii,section:section.title,title})));
+}
+const tests = allTests();
+function getState(t) { return states.get(t.id) || {status:"Not tested",notes:""}; }
+function saveLocal() {
+  const data={version:1,metadata:{tester:el("tester").value,testDate:el("testDate").value,build:el("build").value,overallNotes:el("overallNotes").value},results:Object.fromEntries(states)};
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); } catch(e) {}
+}
+function renderChecklist() {
+  el("checklist").innerHTML = sections.map((s,si)=>{
+    const list=tests.filter(t=>t.si===si);
+    const done=list.filter(t=>getState(t).status!=="Not tested").length;
+    return `<section class="section">
+      <div class="section-head" role="button" tabindex="0" data-section="${si}" aria-expanded="${openSections.has(si)}">
+        <h2>${escapeHtml(s.title)}</h2><span class="count">${done}/${list.length} completed</span><span class="chevron">${openSections.has(si)?"▾":"▸"}</span>
+      </div>
+      <div class="tests ${openSections.has(si)?"":"hidden"}">${list.map(t=>{
+        const st=getState(t);
+        return `<article class="test" id="${t.id}">
+          <div class="test-top">
+            <input type="checkbox" data-done="${t.id}" aria-label="Mark ${t.id} completed" ${st.status!=="Not tested"?"checked":""}>
+            <div><span class="test-id">${t.id}</span><span class="test-title">${escapeHtml(t.title)}</span></div>
+          </div>
+          <div class="test-details">
+            <div><label for="status-${t.id}">Result</label><select id="status-${t.id}" data-status="${t.id}">
+              ${["Not tested","Passed","Failed","Blocked"].map(v=>`<option ${st.status===v?"selected":""}>${v}</option>`).join("")}
+            </select></div>
+            <div><label for="notes-${t.id}">Actual result / notes / issue link</label><textarea id="notes-${t.id}" data-notes="${t.id}" placeholder="What happened? Add issue ID or evidence reference if useful.">${escapeHtml(st.notes)}</textarea></div>
+          </div>
+        </article>`;
+      }).join("")}</div></section>`;
+  }).join("");
+}
+function updateSummary() {
+  const counts={"Passed":0,"Failed":0,"Blocked":0,"Not tested":0};
+  tests.forEach(t=>counts[getState(t).status]++);
+  const completed=tests.length-counts["Not tested"];
+  el("passed").textContent=counts.Passed; el("failed").textContent=counts.Failed;
+  el("blocked").textContent=counts.Blocked; el("untested").textContent=counts["Not tested"];
+  el("completion").textContent=Math.round(completed/tests.length*100)+"%";
+  el("overall").textContent=`${completed} of ${tests.length} completed`;
+  el("progressBar").style.width=(completed/tests.length*100)+"%";
+  document.querySelectorAll(".section").forEach((node,si)=>{
+    const list=tests.filter(t=>t.si===si);
+    node.querySelector(".count").textContent=`${list.filter(t=>getState(t).status!=="Not tested").length}/${list.length} completed`;
+  });
+  document.querySelectorAll("[data-done]").forEach(cb=>cb.checked=getState(tests.find(t=>t.id===cb.dataset.done)).status!=="Not tested");
+}
+function updateOne(id,patch) {
+  const old=getState(tests.find(t=>t.id===id));
+  states.set(id,{...old,...patch});
+  saveLocal(); updateSummary();
+}
+function metadata() { return {tester:el("tester").value,testDate:el("testDate").value,build:el("build").value,overallNotes:el("overallNotes").value}; }
+function reportData() { return {title:"Upkeep Production QA Report",environment:"Production",generatedAt:new Date().toISOString(),metadata:metadata(),tests:tests.map(t=>({...t,...getState(t)}))}; }
+function reportHtml(data) {
+ const c={"Passed":0,"Failed":0,"Blocked":0,"Not tested":0}; data.tests.forEach(t=>c[t.status]=(c[t.status]||0)+1);
+ return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(data.title)}</title><style>body{font:14px/1.5 system-ui,sans-serif;max-width:1050px;margin:30px auto;padding:0 16px;color:#202331}h1{margin-bottom:4px}.muted{color:#667085}.stats{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}.stat{background:#f3f4f8;padding:12px 18px;border-radius:8px}.section{border:1px solid #ddd;border-radius:10px;margin:14px 0;overflow:hidden}.section h2{font-size:17px;background:#f7f7fa;padding:12px;margin:0}.test{padding:12px;border-top:1px solid #eee;break-inside:avoid}.status{font-weight:700}.Passed{color:#18794e}.Failed{color:#b42318}.Blocked{color:#9a6700}.notes{white-space:pre-wrap;margin:6px 0 0 30px;color:#444}.meta{margin:14px 0;white-space:pre-wrap}@media print{body{margin:0}.section,.test{break-inside:avoid}}</style></head><body>
+ <h1>Upkeep Production QA Report</h1><div class="muted">Environment: Production · Generated ${escapeHtml(new Date(data.generatedAt).toLocaleString())}</div>
+ <div class="meta">${escapeHtml([data.metadata.tester&&"Tester: "+data.metadata.tester,data.metadata.testDate&&"Test date: "+data.metadata.testDate,data.metadata.build&&"Build/release: "+data.metadata.build,data.metadata.overallNotes&&"Overall notes: "+data.metadata.overallNotes].filter(Boolean).join("\\n"))}</div>
+ <div class="stats"><div class="stat"><b>${c.Passed}</b><br>Passed</div><div class="stat"><b>${c.Failed}</b><br>Failed</div><div class="stat"><b>${c.Blocked}</b><br>Blocked</div><div class="stat"><b>${c["Not tested"]}</b><br>Not tested</div><div class="stat"><b>${Math.round((data.tests.length-c["Not tested"])/data.tests.length*100)}%</b><br>Completed</div></div>
+ ${sections.map((s,si)=>`<section class="section"><h2>${escapeHtml(s.title)}</h2>${data.tests.filter(t=>t.si===si).map(t=>`<div class="test"><div><b>${t.id}</b> — ${escapeHtml(t.title)}</div><div class="status ${escapeHtml(t.status)}">Result: ${escapeHtml(t.status)}</div>${t.notes?`<div class="notes">Notes: ${escapeHtml(t.notes)}</div>`:""}</div>`).join("")}</section>`).join("")}
+ <p class="muted">This report reflects results manually entered by the tester; it does not independently verify Upkeep production behavior.</p></body></html>`;
+}
+function download(filename,content,type) {
+ const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob); const a=document.createElement("a");
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function safeDate() { return new Date().toISOString().slice(0,10); }
+el("checklist").addEventListener("click",e=>{
+ const head=e.target.closest("[data-section]"); if(!head)return;
+ const si=Number(head.dataset.section);
+ if(openSections.has(si))openSections.delete(si);else openSections.add(si);
+ renderChecklist();
+});
+el("checklist").addEventListener("keydown",e=>{
+ if((e.key==="Enter"||e.key===" ")&&e.target.matches("[data-section]")){e.preventDefault();e.target.click();}
+});
+el("checklist").addEventListener("change",e=>{
+ const id=e.target.dataset.status;
+ if(id){updateOne(id,{status:e.target.value});return;}
+ const done=e.target.dataset.done;
+ if(done){updateOne(done,{status:e.target.checked?"Passed":"Not tested"});return;}
+});
+el("checklist").addEventListener("input",e=>{
+ const id=e.target.dataset.notes;
+ if(id){const old=getState(tests.find(t=>t.id===id));states.set(id,{...old,notes:e.target.value});saveLocal();}
+});
+["tester","testDate","build","overallNotes"].forEach(id=>el(id).addEventListener("input",saveLocal));
+el("exportJson").addEventListener("click",()=>download("upkeep-qa-progress.json",JSON.stringify({version:1,metadata:metadata(),results:Object.fromEntries(states)},null,2),"application/json"));
+el("importJson").addEventListener("click",()=>el("importFile").click());
+el("importFile").addEventListener("change",async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  const data=JSON.parse(await file.text());
+  if(!data||typeof data.results!=="object")throw new Error("This doesn't look like a QA progress backup.");
+  states.clear();Object.entries(data.results).forEach(([id,v])=>{if(tests.some(t=>t.id===id)&&v&&["Not tested","Passed","Failed","Blocked"].includes(v.status))states.set(id,{status:v.status,notes:String(v.notes||"")});});
+  const m=data.metadata||{};["tester","testDate","build","overallNotes"].forEach(k=>{if(m[k]!==undefined)el(k).value=m[k];});
+  saveLocal();renderChecklist();updateSummary();alert("Progress imported.");
+ }catch(err){alert("Could not import: "+err.message);}
+ e.target.value="";
+});
+el("downloadReport").addEventListener("click",()=>download("upkeep-production-qa-report.html",reportHtml(reportData()),"text/html;charset=utf-8"));
+el("downloadCsv").addEventListener("click",()=>{
+ const rows=[["Test ID","Section","Test case","Status","Notes"],...tests.map(t=>[t.id,t.section,t.title,getState(t).status,getState(t).notes])];
+ const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ download("upkeep-production-qa-report.csv","\ufeff"+csv,"text/csv;charset=utf-8");
+});
+el("printReport").addEventListener("click",()=>{
+ const w=window.open("","_blank");
+ if(!w){alert("Your browser blocked the print window. Allow pop-ups for this file and try again.");return;}
+ w.document.open();w.document.write(reportHtml(reportData()));w.document.close();w.focus();setTimeout(()=>w.print(),300);
+});
+el("reset").addEventListener("click",()=>{
+ if(!confirm("Reset every test status and note on this browser? Export a progress backup first if you need to keep it."))return;
+ states.clear();["tester","build","overallNotes"].forEach(id=>el(id).value="");el("testDate").value=safeDate();
+ saveLocal();renderChecklist();updateSummary();
+});
+function init(){
+ el("testDate").value=safeDate();
+ try{
+  const raw=localStorage.getItem(STORAGE_KEY);
+  if(raw){const d=JSON.parse(raw);Object.entries(d.results||{}).forEach(([id,v])=>{if(tests.some(t=>t.id===id))states.set(id,v);});const m=d.metadata||{};["tester","testDate","build","overallNotes"].forEach(k=>{if(m[k]!==undefined)el(k).value=m[k];});}
+ }catch(e){}
+ renderChecklist();updateSummary();
+}
+init();
+</script>
+</body>
+</html>
